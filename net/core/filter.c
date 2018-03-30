@@ -3256,7 +3256,7 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
-sock_filter_func_proto(enum bpf_func_id func_id)
+sock_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	/* inet and inet6 sockets are created in a process
@@ -3270,7 +3270,7 @@ sock_filter_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
-sk_filter_func_proto(enum bpf_func_id func_id)
+sk_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_skb_load_bytes:
@@ -3287,7 +3287,7 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
-tc_cls_act_func_proto(enum bpf_func_id func_id)
+tc_cls_act_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_skb_store_bytes:
@@ -3358,7 +3358,7 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
-xdp_func_proto(enum bpf_func_id func_id)
+xdp_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_perf_event_output:
@@ -3377,7 +3377,7 @@ xdp_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
-lwt_inout_func_proto(enum bpf_func_id func_id)
+lwt_inout_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_skb_load_bytes:
@@ -3404,7 +3404,7 @@ lwt_inout_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
-	sock_ops_func_proto(enum bpf_func_id func_id)
+sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_setsockopt:
@@ -3416,7 +3416,8 @@ static const struct bpf_func_proto *
 	}
 }
 
-static const struct bpf_func_proto *sk_skb_func_proto(enum bpf_func_id func_id)
+static const struct bpf_func_proto *
+sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_skb_store_bytes:
@@ -3441,7 +3442,7 @@ static const struct bpf_func_proto *sk_skb_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
-lwt_xmit_func_proto(enum bpf_func_id func_id)
+lwt_xmit_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_skb_get_tunnel_key:
@@ -3471,11 +3472,12 @@ lwt_xmit_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_set_hash_invalid:
 		return &bpf_set_hash_invalid_proto;
 	default:
-		return lwt_inout_func_proto(func_id);
+		return lwt_inout_func_proto(func_id, prog);
 	}
 }
 
 static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type,
+				    const struct bpf_prog *prog,
 				    struct bpf_insn_access_aux *info)
 {
 	const int size_default = sizeof(__u32);
@@ -3518,6 +3520,7 @@ static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type
 
 static bool sk_filter_is_valid_access(int off, int size,
 				      enum bpf_access_type type,
+				      const struct bpf_prog *prog,
 				      struct bpf_insn_access_aux *info)
 {
 	switch (off) {
@@ -3537,11 +3540,12 @@ static bool sk_filter_is_valid_access(int off, int size,
 		}
 	}
 
-	return bpf_skb_is_valid_access(off, size, type, info);
+	return bpf_skb_is_valid_access(off, size, type, prog, info);
 }
 
 static bool lwt_is_valid_access(int off, int size,
 				enum bpf_access_type type,
+				const struct bpf_prog *prog,
 				struct bpf_insn_access_aux *info)
 {
 	switch (off) {
@@ -3570,11 +3574,12 @@ static bool lwt_is_valid_access(int off, int size,
 		break;
 	}
 
-	return bpf_skb_is_valid_access(off, size, type, info);
+	return bpf_skb_is_valid_access(off, size, type, prog, info);
 }
 
 static bool sock_filter_is_valid_access(int off, int size,
 					enum bpf_access_type type,
+					const struct bpf_prog *prog,
 					struct bpf_insn_access_aux *info)
 {
 	if (type == BPF_WRITE) {
@@ -3646,6 +3651,7 @@ static int tc_cls_act_prologue(struct bpf_insn *insn_buf, bool direct_write,
 
 static bool tc_cls_act_is_valid_access(int off, int size,
 				       enum bpf_access_type type,
+				       const struct bpf_prog *prog,
 				       struct bpf_insn_access_aux *info)
 {
 	if (type == BPF_WRITE) {
@@ -3672,7 +3678,7 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 		return false;
 	}
 
-	return bpf_skb_is_valid_access(off, size, type, info);
+	return bpf_skb_is_valid_access(off, size, type, prog, info);
 }
 
 static bool __is_valid_xdp_access(int off, int size)
@@ -3689,6 +3695,7 @@ static bool __is_valid_xdp_access(int off, int size)
 
 static bool xdp_is_valid_access(int off, int size,
 				enum bpf_access_type type,
+				const struct bpf_prog *prog,
 				struct bpf_insn_access_aux *info)
 {
 	if (type == BPF_WRITE)
@@ -3731,6 +3738,7 @@ static bool __is_valid_sock_ops_access(int off, int size)
 
 static bool sock_ops_is_valid_access(int off, int size,
 				     enum bpf_access_type type,
+				     const struct bpf_prog *prog,
 				     struct bpf_insn_access_aux *info)
 {
 	if (type == BPF_WRITE) {
@@ -3754,6 +3762,7 @@ static int sk_skb_prologue(struct bpf_insn *insn_buf, bool direct_write,
 
 static bool sk_skb_is_valid_access(int off, int size,
 				   enum bpf_access_type type,
+				   const struct bpf_prog *prog,
 				   struct bpf_insn_access_aux *info)
 {
 	if (type == BPF_WRITE) {
@@ -3778,7 +3787,7 @@ static bool sk_skb_is_valid_access(int off, int size,
 		break;
 	}
 
-	return bpf_skb_is_valid_access(off, size, type, info);
+	return bpf_skb_is_valid_access(off, size, type, prog, info);
 }
 
 static u32 bpf_convert_ctx_access(enum bpf_access_type type,
