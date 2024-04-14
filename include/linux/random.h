@@ -10,11 +10,7 @@
 
 #include <uapi/linux/random.h>
 
-struct random_ready_callback {
-	struct list_head list;
-	void (*func)(struct random_ready_callback *rdy);
-	struct module *owner;
-};
+struct notifier_block;
 
 void add_device_randomness(const void *buf, size_t len);
 void __init add_bootloader_randomness(const void *buf, size_t len);
